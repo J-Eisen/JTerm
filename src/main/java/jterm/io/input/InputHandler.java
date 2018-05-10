@@ -3,9 +3,11 @@ package jterm.io.input;
 import jterm.JTerm;
 import jterm.io.output.TextColor;
 import jterm.util.FileAutocomplete;
+import jterm.util.CommandAutocomplete;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 
 public class InputHandler {
@@ -47,6 +49,8 @@ public class InputHandler {
         lastChar = c;
         if (key != Keys.TAB)
             resetVars = true;
+
+        JTerm.out.printf(TextColor.INFO, "TEST LINE (C_INPUT): %c", c);
         key.executeAction();
     }
 
@@ -117,6 +121,7 @@ public class InputHandler {
     }
 
     static void newLineEvent() {
+        JTerm.out.printf(TextColor.INFO, "TEST LINE (N_INPUT): %s", command);
         lastArrowPress = Keys.NONE;
         boolean empty = command.trim().isEmpty();
 
@@ -129,7 +134,8 @@ public class InputHandler {
         currCommand = "";
         setCursorPos(0);
         setResetVars(true);
-        System.out.println();
+        //System.out.println();
+        JTerm.out.printf(TextColor.INFO, "TEST LINE (E_INPUT): %s", command);
         parse();
         command = "";
         JTerm.out.printPrompt();
@@ -176,11 +182,8 @@ public class InputHandler {
      * Sends command to terminal class for parsing, source is the newlineEvent in the key processor
      */
     private static void parse() {
-        String[] commands = command.split("&&");
-        for (String command : commands) {
-            command = command.trim();
-            JTerm.executeCommand(command);
-        }
+        JTerm.out.printf(TextColor.INFO, "TEST LINE (P_INPUT): %s", command);
+        Arrays.stream(command.split("&&")).forEach(command -> JTerm.executeCommand(command.trim()));
     }
 
     /**
@@ -219,6 +222,30 @@ public class InputHandler {
     }
 
     /**
+     * Autocompletes desired file name similar to how terminals do it.
+     */
+    private static void commandAutocomplete() {
+
+        if (resetVars)
+            CommandAutocomplete.resetVars();
+
+        if (CommandAutocomplete.getPossibleCommands() == null) {
+             CommandAutocomplete.init(disassembleCommand(command), false, false);
+             resetVars = false;
+        } else
+            CommandAutocomplete.commandAutocomplete();
+
+        command = CommandAutocomplete.getCommand();
+
+        if (CommandAutocomplete.isResetVars())
+            CommandAutocomplete.resetVars();
+
+        // Get variables and set cursor position
+        setCursorPos(CommandAutocomplete.getCursorPos());
+        moveToCursorPos();
+    }
+
+    /**
      * Splits a command into 3 parts for the autocomplete function to operate properly.
      * <p>
      * Elements 0 and 2 are the non-relevant part of the command to the autocomplete function
@@ -231,7 +258,7 @@ public class InputHandler {
      * @return Returns disassembled string, with non relevant info in elements 0 and 2, and the string to autocomplete
      * in element 1
      */
-    private static String[] disassembleCommand(String command) {
+    private static String[] disassembleCommandOld(String command) {
 
         if (!command.contains("&&"))
             return new String[]{"", command, ""};
@@ -284,6 +311,35 @@ public class InputHandler {
         return splitCommand;
     }
 
+    private static String[] disassembleCommand(String command) {
+        String[] out = new String[]{"", "", ""};
+
+        if (!command.contains("&&")) {
+            out[1] = command.substring(0, cursorPos);
+            out[2] = command.substring(cursorPos);
+            return out;
+        }
+
+        String[] commands = Arrays.stream(command.split("&&")).map(String::trim).toArray(String[]::new);
+        int len = 0;
+        int i = 0;
+
+        while (cursorPos > (len + commands[i].length() + 4)) {
+            out[0] += commands[i] + " && ";
+            i++;
+            len += commands[i].length() + 4;
+        }
+
+        out[1] = commands[i].substring(0, cursorPos - len);
+        out[2] = commands[i++].substring(cursorPos - len);
+
+        while (i < commands.length) {
+            out[2] += " && " + commands[i];
+            i++;
+        }
+        return out;
+    }
+
     private static ArrayList<String> getPrevCommands() {
         return prevCommands;
     }
@@ -304,7 +360,7 @@ public class InputHandler {
         return cursorPos;
     }
 
-    private static void setCursorPos(int cursorPosition) {
+    public static void setCursorPos(int cursorPosition) {
         cursorPos = cursorPosition;
     }
 }

@@ -12,15 +12,17 @@ import java.awt.event.KeyListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
+
 public class Terminal extends JFrame implements KeyListener {
+
     private JPanel contentPane;
     private JTextPane textPane;
 
 
     public Terminal() {
         TextColor.initGui();
-        JTerm.IS_WIN = false;
-        JTerm.IS_UNIX = true;
+        // JTerm.IS_WIN = false;
+        // JTerm.IS_UNIX = true;
 
         setContentPane(contentPane);
         // call onCancel() when cross is clicked
